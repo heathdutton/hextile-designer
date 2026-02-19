@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hextile Designer — Interlocking Hex Tile Generator for Laser Cutting</title>
 <meta name="description" content="Interactive design tool for laser-cut hexagonal board game tiles with interlocking twist joints. Adjust twist angle, radius, rounding, and thickness. Export SVG for laser cutting.">
-<meta name="keywords" content="hex tiles, hexagonal tiles, laser cutting, board game tiles, interlocking tiles, SVG export, tile designer, hex grid, laser cut wood, tabletop gaming">
 <meta property="og:title" content="Hextile Designer">
 <meta property="og:description" content="Design interlocking hexagonal tiles for laser cutting. Adjust geometry, preview interlock feel, and export SVG.">
 <meta property="og:type" content="website">
@@ -81,7 +80,7 @@
     width: 100%; padding: 8px; background: transparent; color: var(--accent);
     border: 1px solid var(--accent); border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 6px;
   }
-  #export-grid-btn:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  #export-grid-btn:hover { background: rgba(200,200,200,0.08); background: color-mix(in srgb, var(--accent) 10%, transparent); }
   .info { font-size: 11px; color: var(--muted); margin-top: 16px; line-height: 1.6; }
   .examples { margin-top: 12px; font-size: 12px; }
   .examples summary { cursor: pointer; color: var(--label); font-weight: 600; }
@@ -199,7 +198,7 @@
   <div class="cb"><label><input type="checkbox" id="show-original"> Show original hex</label></div>
   <div class="cb"><label><input type="checkbox" id="show-circles"> Show twist circles</label></div>
   <div class="cb"><label><input type="checkbox" id="show-single" checked> Show isolated tile</label></div>
-  <div class="cb"><label><input type="checkbox" id="show-junction" checked> Show 3-tile junction</label></div>
+  <div class="cb"><label><input type="checkbox" id="show-junction" checked> Show tile junction</label></div>
   <div class="cb"><label><input type="checkbox" id="show-stats" checked> Show stats</label></div>
   <div class="group" style="margin-top: 10px;">
     <label>Theme
@@ -235,13 +234,13 @@
     but resistant to sliding apart. The tiles still meet at each vertex point
     (no voids). Tab depth &asymp; r &times; sin(&theta;).
   </div>
-  <a href="https://github.com/heathdutton/hextile-designer" target="_blank" style="display:block; margin-top:16px; font-size:11px; color:var(--muted); text-decoration:none;">github.com/heathdutton/hextile-designer</a>
+  <a href="https://github.com/heathdutton/hextile-designer" target="_blank" rel="noopener noreferrer" style="display:block; margin-top:16px; font-size:11px; color:var(--muted); text-decoration:none;">github.com/heathdutton/hextile-designer</a>
 </div>
 
 <div id="main">
-  <canvas id="c"></canvas>
+  <canvas id="c">Hextile preview</canvas>
   <div id="stats-overlay">
-    <button class="overlay-close" onclick="document.getElementById('show-stats').checked=false;onInput();">&times;</button>
+    <button class="overlay-close" id="close-stats-btn" aria-label="Close stats">&times;</button>
     <div class="gauge">
       <div class="gauge-label">Interlock Feel</div>
       <div class="gauge-track"><div class="gauge-pip" id="gauge-pip"></div></div>
@@ -272,6 +271,7 @@
 </div>
 
 <script>
+'use strict';
 // ============================================================
 //  Constants & utilities
 // ============================================================
@@ -518,7 +518,8 @@ function roundCorners(pts, edgeRadius, vtxRadius) {
 
 function tracePath(pts) {
   ctx.beginPath();
-  pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
   ctx.closePath();
 }
 
@@ -549,12 +550,10 @@ const SCHEMES = [
     accent:'#ff6ec7', accentHover:'#e050a8', label:'#c0a0d8', muted:'#6a4c93',
     link:'#72c4ff', overlay:'#0d0221', stroke:'#0d0221' },
 ];
-const BASE = [...SCHEMES[0].colors];
 let THEME = SCHEMES[0];
 
 function setScheme(idx) {
   const t = SCHEMES[Math.max(0, Math.min(idx, SCHEMES.length - 1))];
-  BASE[0] = t.colors[0]; BASE[1] = t.colors[1]; BASE[2] = t.colors[2];
   THEME = t;
   const r = document.documentElement.style;
   r.setProperty('--bg', t.bg);
@@ -843,7 +842,7 @@ function draw() {
 
     // Fill
     tracePath(outline);
-    ctx.fillStyle = BASE[ci];
+    ctx.fillStyle = THEME.colors[ci];
     ctx.globalAlpha = 0.75;
     ctx.fill();
     ctx.globalAlpha = 1;
@@ -879,7 +878,7 @@ function draw() {
   // ---- Inset: isolated single tile ----
   if (p.showSingle) drawSingleTile(p);
 
-  // ---- Inset: 3-tile junction detail ----
+  // ---- Inset: tile junction detail ----
   if (p.showJunction) drawJunction(p);
 }
 
@@ -976,7 +975,7 @@ function drawSingleTile(p) {
 }
 
 // ============================================================
-//  3-tile junction inset (bottom-right corner)
+//  Tile junction inset (bottom-right corner)
 // ============================================================
 
 function drawJunction(p) {
@@ -1002,7 +1001,7 @@ function drawJunction(p) {
   ctx.fillStyle = '#666';
   ctx.font = '11px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('3-Tile Junction', cx, by + 14);
+  ctx.fillText('Tile Junction', cx, by + 14);
 
   // The three tiles meeting at a vertex:
   // Use the right-most vertex (angle 0) of the center hex.
@@ -1035,7 +1034,7 @@ function drawJunction(p) {
     if (p.roundEdge > 0 || p.roundVtx > 0) outline = roundCorners(outline, p.roundEdge * s, p.roundVtx * s);
 
     tracePath(outline);
-    ctx.fillStyle = BASE[t.ci];
+    ctx.fillStyle = THEME.colors[t.ci];
     ctx.globalAlpha = 0.7;
     ctx.fill();
     ctx.globalAlpha = 1;
@@ -1097,6 +1096,18 @@ function drawJunction(p) {
 //  SVG export
 // ============================================================
 
+function downloadSVG(svgString, filename) {
+  const blob = new Blob([svgString], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 document.getElementById('export-btn').addEventListener('click', () => {
   const p = getP();
   const s = p.exportSize;                // mm side length from input
@@ -1124,15 +1135,7 @@ document.getElementById('export-btn').addEventListener('click', () => {
   <path d="${d}" fill="none" stroke="black" stroke-width="0.1"/>
 </svg>`;
 
-  const blob = new Blob([svg], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `hex-twist-${p.angle}deg-r${(p.radius * 100).toFixed(0)}.svg`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadSVG(svg, `hex-twist-${p.angle}deg-r${(p.radius * 100).toFixed(0)}.svg`);
 });
 
 // Grid SVG export — all tiles in the current grid
@@ -1143,23 +1146,27 @@ document.getElementById('export-grid-btn').addEventListener('click', () => {
   const cells = hexGrid(p.gridR);
 
   const paths = [];
-  const allXs = [], allYs = [];
+  let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
 
-  cells.forEach(cell => {
+  for (const cell of cells) {
     const { x: px, y: py } = hex2px(cell.q, cell.r, s);
     let pts = tileOutline(px, py, s, r, p.angle, p.angular);
     if (p.roundEdge > 0 || p.roundVtx > 0) pts = roundCorners(pts, p.roundEdge * s, p.roundVtx * s);
-    // Flip Y for SVG standard orientation
     const fp = pts.map(pt => ({ x: pt.x, y: -pt.y }));
-    fp.forEach(pt => { allXs.push(pt.x); allYs.push(pt.y); });
+    for (const pt of fp) {
+      if (pt.x < xMin) xMin = pt.x;
+      if (pt.x > xMax) xMax = pt.x;
+      if (pt.y < yMin) yMin = pt.y;
+      if (pt.y > yMax) yMax = pt.y;
+    }
     paths.push(fp.map((pt, i) =>
       (i === 0 ? 'M' : 'L') + pt.x.toFixed(4) + ' ' + pt.y.toFixed(4)
     ).join(' ') + ' Z');
-  });
+  }
 
   const margin = 1;
-  const mx = Math.min(...allXs) - margin, my = Math.min(...allYs) - margin;
-  const Mx = Math.max(...allXs) + margin, My = Math.max(...allYs) + margin;
+  const mx = xMin - margin, my = yMin - margin;
+  const Mx = xMax + margin, My = yMax + margin;
 
   const svg =
 `<?xml version="1.0" encoding="UTF-8"?>
@@ -1169,15 +1176,7 @@ document.getElementById('export-grid-btn').addEventListener('click', () => {
   ${paths.map(d => `<path d="${d}" fill="none" stroke="black" stroke-width="0.1"/>`).join('\n  ')}
 </svg>`;
 
-  const blob = new Blob([svg], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `hex-grid-${p.angle}deg-r${(p.radius * 100).toFixed(0)}-${cells.length}tiles.svg`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadSVG(svg, `hex-grid-${p.angle}deg-r${(p.radius * 100).toFixed(0)}-${cells.length}tiles.svg`);
 });
 
 // ============================================================
@@ -1202,7 +1201,7 @@ function loadFromUrl() {
     if (params.has(s.id)) {
       const el = document.getElementById(s.id);
       el.value = params.get(s.id);
-      document.getElementById(s.vid).innerHTML = s.fmt(+el.value);
+      document.getElementById(s.vid).textContent = s.fmt(+el.value);
     }
   });
   CHECKBOXES.forEach(id => {
@@ -1236,7 +1235,7 @@ function onInput() { draw(); saveToUrl(); }
 sliders.forEach(s => {
   const el = document.getElementById(s.id);
   el.addEventListener('input', () => {
-    document.getElementById(s.vid).innerHTML = s.fmt(+el.value);
+    document.getElementById(s.vid).textContent = s.fmt(+el.value);
     onInput();
   });
 });
@@ -1260,6 +1259,10 @@ function resize() {
   cvs.height = Math.max(100, main.clientHeight - 40);
   draw();
 }
+document.getElementById('close-stats-btn').addEventListener('click', () => {
+  document.getElementById('show-stats').checked = false;
+  onInput();
+});
 setScheme(0);
 loadFromUrl();
 window.addEventListener('resize', resize);
