@@ -260,29 +260,44 @@ const OVERLAY_BOX = 260;  // unified width & height for canvas overlays
 let closeRegions = [];     // {x, y, w, h, id} hit targets for overlay X buttons
 
 function drawOverlayClose(bx, by, bw, checkboxId) {
-  const sz = 14, margin = 8;
-  const rx = bx + bw - margin - sz;
-  const ry = by + margin;
-  closeRegions.push({ x: rx - 2, y: ry - 2, w: sz + 4, h: sz + 4, id: checkboxId });
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(rx, ry); ctx.lineTo(rx + sz, ry + sz);
-  ctx.moveTo(rx + sz, ry); ctx.lineTo(rx, ry + sz);
-  ctx.stroke();
+  const hitW = 20, hitH = 20;
+  const rx = bx + bw - hitW - 6;
+  const ry = by + 4;
+  closeRegions.push({ x: rx, y: ry, w: hitW, h: hitH, id: checkboxId });
+  ctx.font = '13px sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('\u00D7', rx + hitW / 2, ry + hitH / 2);
+}
+
+function canvasMouseCoords(e) {
+  const rect = cvs.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (cvs.width / rect.width),
+    y: (e.clientY - rect.top) * (cvs.height / rect.height),
+  };
+}
+
+function hitCloseRegion(mx, my) {
+  for (const r of closeRegions) {
+    if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) return r;
+  }
+  return null;
 }
 
 cvs.addEventListener('click', e => {
-  const rect = cvs.getBoundingClientRect();
-  const mx = (e.clientX - rect.left) * (cvs.width / rect.width);
-  const my = (e.clientY - rect.top) * (cvs.height / rect.height);
-  for (const r of closeRegions) {
-    if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
-      document.getElementById(r.id).checked = false;
-      onInput();
-      return;
-    }
+  const { x, y } = canvasMouseCoords(e);
+  const hit = hitCloseRegion(x, y);
+  if (hit) {
+    document.getElementById(hit.id).checked = false;
+    onInput();
   }
+});
+
+cvs.addEventListener('mousemove', e => {
+  const { x, y } = canvasMouseCoords(e);
+  cvs.style.cursor = hitCloseRegion(x, y) ? 'pointer' : '';
 });
 
 // ============================================================
