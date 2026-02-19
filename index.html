@@ -230,14 +230,14 @@
     </div>
     <div class="gauge">
       <div class="gauge-label">Tab Durability</div>
-      <div class="gauge-track" style="background: linear-gradient(to right, #a00030, #e94560 20%, #f4a261 40%, #8ab840 65%, #2a9d8f);">
+      <div class="gauge-track" style="background: linear-gradient(to right, #2a9d8f, #8ab840 35%, #f4a261 60%, #e94560 80%, #a00030);">
         <div class="gauge-pip" id="dur-pip"></div>
       </div>
       <div class="gauge-labels">
-        <span>Brittle</span>
-        <span>Fair</span>
-        <span>Sturdy</span>
         <span>Robust</span>
+        <span>Sturdy</span>
+        <span>Fair</span>
+        <span>Brittle</span>
       </div>
       <div class="gauge-readout" id="dur-readout">Solid</div>
       <div class="gauge-detail" id="dur-detail"></div>
@@ -690,7 +690,7 @@ function updateGauge(p) {
   const durability    = 1.0 - effectivePresence * (1.0 - tabDurability);
   const durPct        = Math.min(1, Math.max(0, durability));
 
-  document.getElementById('dur-pip').style.left = (durPct * 100) + '%';
+  document.getElementById('dur-pip').style.left = ((1 - durPct) * 100) + '%';
 
   const durLabels = [
     [0.00, 'Brittle',  '#a00030'],
