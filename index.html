@@ -861,17 +861,18 @@ function updateGauge(p) {
   const refArea        = 4.0 * 2.0;  // mm² — meaningful engagement surface
   const contactFactor  = Math.min(1, contactArea / refArea);
 
-  // ---- 4. Vertex-rounding survival factor ----
+  // ---- 4. Vertex-rounding contact reduction ----
   // Vertex rounding shortens the Q→V arm by ρ_vtx / tan(half exterior angle).
-  // For hex (6 sides): π/6 → ρ√3.  Adjusts per polygon type.
-  // If it eats the entire arm, the tab mechanism is smoothed away entirely.
+  // This reduces the friction contact surface near V, but does NOT affect
+  // tab depth or the mechanical block (the jog at Q is far from V).
+  // Only the contact-area factor is penalized.
   const vtxEat  = rhoVtx / Math.tan(Math.PI / SHAPE.sides);
   const armLeft = Math.max(0, r - vtxEat);
   const armFrac = r > 0.001 ? armLeft / r : 0;
 
   // ---- Composite score (0 – 1) ----
   // depthPresence gates everything (no tab = no interlock).
-  // armFrac gates everything (vertex rounding can erase the mechanism).
+  // armFrac only reduces friction contact, not tab depth or mechanical block.
   //
   // Hybrid blend of two combination strategies:
   //   Shallow tabs (low mechanicalBlock): weighted average — friction matters
@@ -879,12 +880,12 @@ function updateGauge(p) {
   //   Deep tabs (high mechanicalBlock): complementary — either mechanism
   //   alone suffices (a 5mm wall is seized regardless of friction).
   // The blend parameter is mechanicalBlock itself, giving a smooth transition.
-  const frictionHold = frictionBonus * contactFactor;
+  const frictionHold = frictionBonus * contactFactor * armFrac;
   const weightedAvg  = 0.4 * mechanicalBlock + 0.6 * frictionHold;
   const complement   = 1 - (1 - mechanicalBlock) * (1 - frictionHold);
   const blend        = mechanicalBlock;
   const combined     = weightedAvg * (1 - blend) + complement * blend;
-  const rawScore     = depthPresence * armFrac * combined;
+  const rawScore     = depthPresence * combined;
   const pct      = Math.min(1, Math.max(0, rawScore));
 
   // ---- Update DOM ----
@@ -946,10 +947,10 @@ function updateGauge(p) {
   //   Sub-2mm features are vulnerable to grain defects and laser kerf.
   //   min(base_width_mm, thickness) penalizes small cross-sections.
   //
-  // Gated by tab presence (no tab = nothing to break = max durability)
-  // and armFrac (vertex rounding can erase the tab entirely).
+  // Gated by tab presence (no tab = nothing to break = max durability).
+  // Vertex rounding at V doesn't affect tab strength (jog is at Q, far from V).
 
-  const effectivePresence = depthPresence * armFrac;
+  const effectivePresence = depthPresence;
 
   // Stress concentration factor at tab base fillet
   const rhoEdgeMm = rhoEdge * scaleMm;
