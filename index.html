@@ -105,8 +105,7 @@
   }
   #export-grid-btn:hover { background: rgba(200,200,200,0.08); background: color-mix(in srgb, var(--accent) 10%, transparent); }
   .info { font-size: 11px; color: var(--muted); margin-top: 16px; line-height: 1.6; }
-  .examples { margin-top: 12px; font-size: 12px; }
-  .examples summary { cursor: pointer; color: var(--label); font-weight: 600; }
+  .examples { font-size: 12px; }
   .examples a { display: block; color: var(--link); text-decoration: none; padding: 2px 0; }
   .examples a:hover { color: var(--accent); }
   .examples .ex-cat { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin: 8px 0 2px; font-weight: 600; }
@@ -204,6 +203,7 @@
   .section-wrap summary {
     font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
     color: var(--muted); cursor: pointer; user-select: none; list-style: disclosure-closed;
+    margin-bottom: 12px;
   }
   .section-wrap[open] summary { list-style: disclosure-open; }
 
@@ -323,7 +323,7 @@
   <button id="export-btn">Export Tile as SVG</button>
   <button id="export-grid-btn">Export Tile Grid as SVG</button>
 
-  <details class="examples">
+  <details class="section-wrap examples">
     <summary>Examples</summary>
 
     <div class="ex-cat">Hexagon</div>
