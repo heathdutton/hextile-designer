@@ -84,8 +84,10 @@
   .info { font-size: 11px; color: var(--muted); margin-top: 16px; line-height: 1.6; }
   .examples { margin-top: 12px; font-size: 12px; }
   .examples summary { cursor: pointer; color: var(--label); font-weight: 600; }
-  .examples a { display: block; color: var(--link); text-decoration: none; padding: 3px 0; }
+  .examples a { display: block; color: var(--link); text-decoration: none; padding: 2px 0; }
   .examples a:hover { color: var(--accent); }
+  .examples .ex-cat { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin: 8px 0 2px; font-weight: 600; }
+  .examples .ex-cat:first-of-type { margin-top: 4px; }
 
   /* Interlock gauge */
   .gauge { margin: 16px 0 6px; }
@@ -249,13 +251,26 @@
 
   <details class="examples">
     <summary>Examples</summary>
-    <a href="#sides=6&angle=32&radius=0.17&round-edge=0.03&round-vtx=0.03&thickness=2&export-size=30&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=0">Default (hex)</a>
-    <a href="#sides=6&angle=0&radius=0&round-edge=0&round-vtx=0&thickness=2&export-size=26&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=0&show-junction=0&show-stats=0&scheme=0">Catan (26mm, no interlock)</a>
-    <a href="#sides=6&angle=6&radius=0.25&round-edge=0.02&round-vtx=0&thickness=3&export-size=26&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=0">Catan-like (gentle, 26mm)</a>
+
+    <div class="ex-cat">Hexagon</div>
+    <a href="#sides=6&angle=0&radius=0&round-edge=0&round-vtx=0&thickness=2&export-size=26&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=0&show-junction=0&show-stats=0&scheme=0">Catan classic (26mm, no interlock)</a>
+    <a href="#sides=6&angle=6&radius=0.25&round-edge=0.02&round-vtx=0&thickness=3&export-size=26&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=0">Catan gentle lock (26mm)</a>
+    <a href="#sides=6&angle=32&radius=0.17&round-edge=0.03&round-vtx=0.03&thickness=2&export-size=30&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=0">Hex default (30mm)</a>
     <a href="#sides=6&angle=20&radius=0.35&round-edge=0.03&round-vtx=0.01&thickness=3&export-size=40&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=0&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=0">Tight puzzle (arc, 40mm)</a>
-    <a href="#sides=4&angle=25&radius=0.2&round-edge=0.02&round-vtx=0.02&thickness=3&export-size=30&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=0">Square tiles (30mm)</a>
-    <a href="#sides=3&angle=15&radius=0.2&round-edge=0.02&round-vtx=0.01&thickness=3&export-size=30&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=0">Triangle tiles (30mm)</a>
-    <a href="#sides=6&angle=30&radius=0.4&round-edge=0.04&round-vtx=0.02&thickness=3&export-size=50&size=85&grid=2&explode=15&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=3">Decorative hex (high twist, exploded)</a>
+    <a href="#sides=6&angle=45&radius=0.3&round-edge=0.04&round-vtx=0.02&thickness=3&export-size=50&size=85&grid=2&explode=15&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=3">Decorative (high twist, exploded)</a>
+    <a href="#sides=6&angle=32&radius=0.17&round-edge=0.03&round-vtx=0.03&thickness=3&export-size=30&size=85&grid=3&explode=0&tilt=35&perspective=35&angular=1&show-original=0&show-circles=0&show-single=0&show-junction=0&show-stats=0&scheme=5">3D showcase (tilted, Synth)</a>
+
+    <div class="ex-cat">Square</div>
+    <a href="#sides=4&angle=12&radius=0.18&round-edge=0.02&round-vtx=0.02&thickness=3&export-size=30&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=0">Gentle snap (30mm)</a>
+    <a href="#sides=4&angle=25&radius=0.2&round-edge=0.02&round-vtx=0.02&thickness=3&export-size=30&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=0">Standard lock (30mm)</a>
+    <a href="#sides=4&angle=38&radius=0.3&round-edge=0.03&round-vtx=0.01&thickness=3&export-size=35&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=0&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=2">Tight puzzle (arc, 35mm, Earth)</a>
+    <a href="#sides=4&angle=25&radius=0.2&round-edge=0.02&round-vtx=0.02&thickness=4&export-size=40&size=75&grid=3&explode=8&tilt=30&perspective=40&angular=1&show-original=0&show-circles=0&show-single=0&show-junction=0&show-stats=0&scheme=4">Checkerboard 3D (exploded, Slate)</a>
+
+    <div class="ex-cat">Triangle</div>
+    <a href="#sides=3&angle=8&radius=0.15&round-edge=0.02&round-vtx=0.01&thickness=3&export-size=30&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=0">Gentle snap (30mm)</a>
+    <a href="#sides=3&angle=15&radius=0.2&round-edge=0.02&round-vtx=0.01&thickness=3&export-size=30&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=1&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=0">Standard lock (30mm)</a>
+    <a href="#sides=3&angle=25&radius=0.3&round-edge=0.03&round-vtx=0.01&thickness=3&export-size=35&size=85&grid=2&explode=0&tilt=0&perspective=35&angular=0&show-original=0&show-circles=0&show-single=1&show-junction=1&show-stats=1&scheme=1">Tight puzzle (arc, 35mm, Berry)</a>
+    <a href="#sides=3&angle=15&radius=0.2&round-edge=0.02&round-vtx=0.01&thickness=3&export-size=30&size=70&grid=3&explode=10&tilt=25&perspective=35&angular=1&show-original=0&show-circles=0&show-single=0&show-junction=0&show-stats=0&scheme=3">Mosaic 3D (exploded, Ocean)</a>
   </details>
 
   <div class="info">
