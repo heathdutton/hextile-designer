@@ -1495,7 +1495,7 @@ document.getElementById('randomize-btn').addEventListener('click', () => {
     return min + Math.round(Math.random() * steps) * step;
   };
   const tileSliders = [
-    { id: 'angle',       vid: 'v-angle',       min: 0, max: SHAPE.maxTwist, step: 0.5, fmt: v => v.toFixed(1) + '\u00B0' },
+    { id: 'angle',       vid: 'v-angle',       min: -SHAPE.maxTwist, max: SHAPE.maxTwist, step: 0.5, fmt: v => v.toFixed(1) + '\u00B0' },
     { id: 'radius',      vid: 'v-radius',      min: 0.05, max: 0.45, step: 0.01, fmt: v => v.toFixed(2) + ' \u00D7 side' },
     { id: 'round-edge',  vid: 'v-round-edge',  min: 0, max: 0.15, step: 0.005, fmt: v => (+v).toFixed(3) + ' \u00D7 side' },
     { id: 'round-vtx',   vid: 'v-round-vtx',   min: 0, max: 0.15, step: 0.005, fmt: v => (+v).toFixed(3) + ' \u00D7 side' },
