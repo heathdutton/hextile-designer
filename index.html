@@ -212,9 +212,12 @@
     <label>Twist Radius <span id="v-radius">0.17 &times; side</span></label>
     <input type="range" id="radius" min="0" max="0.5" step="0.01" value="0.17">
   </div>
-  <div class="pill-switch" style="margin-bottom:14px">
-    <input type="radio" name="joint" id="joint-angular" value="1" checked><label for="joint-angular">Angular</label>
-    <input type="radio" name="joint" id="joint-circular" value="0"><label for="joint-circular">Circular</label>
+  <div class="group" style="margin-bottom:14px">
+    <label style="margin-bottom:6px">Twist Type</label>
+    <div class="pill-switch" style="margin-bottom:0">
+      <input type="radio" name="joint" id="joint-angular" value="1" checked><label for="joint-angular">Angular</label>
+      <input type="radio" name="joint" id="joint-circular" value="0"><label for="joint-circular">Circular</label>
+    </div>
   </div>
 
   <div class="group">
@@ -503,9 +506,10 @@ function triColor(col, row) {
 //  vertex — the three tiles meet cleanly at every junction.
 // ============================================================
 
-// Each point gets a .vtx flag: true for the vertex intersection
-// points (V), false for everything else (jog / edge points).
-// This lets us apply different rounding radii to each type.
+// Each point carries a rounding tag:
+//   .vtx = true   → vertex intersection point (uses vtxRadius)
+//   .vtx = false   → edge/jog corner point (uses edgeRadius)
+//   .smooth = true → arc interior point (skip rounding entirely)
 
 function tileOutline(cx, cy, s, r, thetaDeg, useAngular, sides, rotOff) {
   const n = sides || 6;
@@ -515,7 +519,7 @@ function tileOutline(cx, cy, s, r, thetaDeg, useAngular, sides, rotOff) {
 
   const theta = deg(thetaDeg);
   const pts = [];
-  const push = (x, y, vtx) => pts.push({ x, y, vtx: !!vtx });
+  const push = (x, y, vtx, smooth) => pts.push({ x, y, vtx: !!vtx, smooth: !!smooth });
 
   for (let i = 0; i < n; i++) {
     const V  = verts[i];
@@ -525,37 +529,38 @@ function tileOutline(cx, cy, s, r, thetaDeg, useAngular, sides, rotOff) {
     const ap = Math.atan2(Vp.y - V.y, Vp.x - V.x);
     const an = Math.atan2(Vn.y - V.y, Vn.x - V.x);
 
-    // P_in  (edge point)
-    push(V.x + r * Math.cos(ap), V.y + r * Math.sin(ap), false);
+    // P_in  (edge point — transition corner, always roundable)
+    push(V.x + r * Math.cos(ap), V.y + r * Math.sin(ap), false, false);
 
     // Q_in  (edge point(s) — tab jog)
     if (useAngular) {
-      push(V.x + r * Math.cos(ap + theta), V.y + r * Math.sin(ap + theta), false);
+      push(V.x + r * Math.cos(ap + theta), V.y + r * Math.sin(ap + theta), false, false);
     } else {
       const arcN = Math.max(3, Math.round(8 * Math.abs(theta) / (TAU / 3)));
       for (let j = 1; j <= arcN; j++) {
-        const a = ap + theta * j / arcN;
-        push(V.x + r * Math.cos(a), V.y + r * Math.sin(a), false);
+        // First and last arc points are transitions; interior points are smooth
+        const isEnd = j === arcN;
+        push(V.x + r * Math.cos(ap + theta * j / arcN), V.y + r * Math.sin(ap + theta * j / arcN), false, !isEnd);
       }
     }
 
     // V  (VERTEX intersection point)
-    push(V.x, V.y, true);
+    push(V.x, V.y, true, false);
 
     // Q_out  (edge point(s) — notch jog)
     if (useAngular) {
-      push(V.x + r * Math.cos(an + theta), V.y + r * Math.sin(an + theta), false);
+      push(V.x + r * Math.cos(an + theta), V.y + r * Math.sin(an + theta), false, false);
     } else {
-      push(V.x + r * Math.cos(an + theta), V.y + r * Math.sin(an + theta), false);
+      // First point is transition
+      push(V.x + r * Math.cos(an + theta), V.y + r * Math.sin(an + theta), false, false);
       const arcN = Math.max(3, Math.round(8 * Math.abs(theta) / (TAU / 3)));
       for (let j = 1; j < arcN; j++) {
-        const a = an + theta * (1 - j / arcN);
-        push(V.x + r * Math.cos(a), V.y + r * Math.sin(a), false);
+        push(V.x + r * Math.cos(an + theta * (1 - j / arcN)), V.y + r * Math.sin(an + theta * (1 - j / arcN)), false, true);
       }
     }
 
-    // P_out  (edge point)
-    push(V.x + r * Math.cos(an), V.y + r * Math.sin(an), false);
+    // P_out  (edge point — transition corner, always roundable)
+    push(V.x + r * Math.cos(an), V.y + r * Math.sin(an), false, false);
   }
   return pts;
 }
@@ -581,6 +586,7 @@ function roundCorners(pts, edgeRadius, vtxRadius) {
     const B = pts[i];
     const C = pts[(i + 1) % n];
 
+    if (B.smooth) { out.push(B); continue; }
     const radius = B.vtx ? vtxRadius : edgeRadius;
     if (radius < 0.001) { out.push(B); continue; }
 
