@@ -1384,8 +1384,9 @@ document.getElementById('export-btn').addEventListener('click', () => {
   <path d="${d}" fill="none" stroke="black" stroke-width="0.1"/>
 </svg>`;
 
-  const shapeName = SHAPE.name.toLowerCase();
-  downloadSVG(svg, `${shapeName}-twist-${p.angle}deg-r${(p.radius * 100).toFixed(0)}.svg`);
+  const sn = SHAPE.name.toLowerCase();
+  const jt = p.angular ? 'ang' : 'arc';
+  downloadSVG(svg, `${sn}-${p.angle}deg-r${(p.radius * 100).toFixed(0)}-re${(p.roundEdge * 1000).toFixed(0)}-rv${(p.roundVtx * 1000).toFixed(0)}-${p.exportSize}mm-${jt}.svg`);
 });
 
 // Grid SVG export — all tiles in the current grid
@@ -1427,8 +1428,9 @@ document.getElementById('export-grid-btn').addEventListener('click', () => {
   ${paths.map(d => `<path d="${d}" fill="none" stroke="black" stroke-width="0.1"/>`).join('\n  ')}
 </svg>`;
 
-  const shapeName = SHAPE.name.toLowerCase();
-  downloadSVG(svg, `${shapeName}-grid-${p.angle}deg-r${(p.radius * 100).toFixed(0)}-${cells.length}tiles.svg`);
+  const sn = SHAPE.name.toLowerCase();
+  const jt = p.angular ? 'ang' : 'arc';
+  downloadSVG(svg, `${sn}-grid-${p.angle}deg-r${(p.radius * 100).toFixed(0)}-re${(p.roundEdge * 1000).toFixed(0)}-rv${(p.roundVtx * 1000).toFixed(0)}-${p.exportSize}mm-${jt}-${cells.length}tiles.svg`);
 });
 
 // ============================================================
