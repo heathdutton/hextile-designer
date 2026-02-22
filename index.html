@@ -91,7 +91,8 @@
   }
   .section-wrap summary button:hover { color: var(--accent); border-color: var(--accent); }
   .group { margin-bottom: 14px; }
-  .group > label { display: block; font-size: 13px; margin-bottom: 4px; color: var(--label); }
+  .group > label { display: block; font-size: 13px; margin-bottom: 4px; color: var(--label); cursor: pointer; }
+  .group > label:hover { color: var(--accent); }
   .group label span { float: right; color: var(--accent); font-weight: bold; }
   input[type=range] { width: 100%; accent-color: var(--accent); }
   .cb { margin-bottom: 10px; }
@@ -276,6 +277,10 @@
   <div class="group">
     <label>Vertex Rounding <span id="v-round-vtx">0.030 &times; side</span></label>
     <input type="range" id="round-vtx" min="0" max="0.25" step="0.005" value="0.03">
+  </div>
+  <div class="group">
+    <label>Side Smoothing <span id="v-side-smooth">0%</span></label>
+    <input type="range" id="side-smooth" min="0" max="100" step="1" value="0">
   </div>
   <div class="group">
     <label>Tile Thickness <span id="v-thickness">2.0 mm</span></label>
@@ -646,11 +651,11 @@ function tileOutline(cx, cy, s, r, thetaDeg, useAngular, sides, rotOff) {
   const n = sides || 6;
   const verts = polyVerts(cx, cy, s, n, rotOff);
   if (r < 0.001 || Math.abs(thetaDeg) < 0.01)
-    return verts.map(v => ({ x: v.x, y: v.y, vtx: true }));
+    return verts.map(v => ({ x: v.x, y: v.y, vtx: true, side: true }));
 
   const theta = deg(thetaDeg);
   const pts = [];
-  const push = (x, y, vtx, smooth) => pts.push({ x, y, vtx: !!vtx, smooth: !!smooth });
+  const push = (x, y, vtx, smooth, side) => pts.push({ x, y, vtx: !!vtx, smooth: !!smooth, side: !!side });
 
   for (let i = 0; i < n; i++) {
     const V  = verts[i];
@@ -661,7 +666,7 @@ function tileOutline(cx, cy, s, r, thetaDeg, useAngular, sides, rotOff) {
     const an = Math.atan2(Vn.y - V.y, Vn.x - V.x);
 
     // P_in  (edge point — transition corner, always roundable)
-    push(V.x + r * Math.cos(ap), V.y + r * Math.sin(ap), false, false);
+    push(V.x + r * Math.cos(ap), V.y + r * Math.sin(ap), false, false, true);
 
     // Q_in  (edge point(s) — tab jog)
     if (useAngular) {
@@ -691,7 +696,7 @@ function tileOutline(cx, cy, s, r, thetaDeg, useAngular, sides, rotOff) {
     }
 
     // P_out  (edge point — transition corner, always roundable)
-    push(V.x + r * Math.cos(an), V.y + r * Math.sin(an), false, false);
+    push(V.x + r * Math.cos(an), V.y + r * Math.sin(an), false, false, true);
   }
   return pts;
 }
@@ -765,6 +770,109 @@ function roundCorners(pts, edgeRadius, vtxRadius) {
     for (let j = 0; j <= ARC_SEGS; j++) {
       const a = a1 + sweep * j / ARC_SEGS;
       out.push({ x: cx + actualR * Math.cos(a), y: cy + actualR * Math.sin(a) });
+    }
+  }
+  return out;
+}
+
+// ============================================================
+//  Side smoothing
+//
+//  Replace straight segments between twist circles with S-curves.
+//  Each side segment is split at its midpoint into two quadratic
+//  beziers — first half bows outward, second half bows inward.
+//  The S-curve is point-symmetric about the edge midpoint so
+//  adjacent tiles' shared edges remain complementary.
+// ============================================================
+
+function smoothSides(pts, pct, cx, cy, angle) {
+  // Effective amount scales with both the slider percentage and the
+  // twist angle — 100% at 55° gives ~0.4, 0° always gives 0.
+  const eff = pct * Math.abs(angle) * (0.4 / 55);
+  if (eff < 0.001) return pts;
+  const n = pts.length;
+  if (n < 3) return pts;
+
+  // Build a set of segment indices [i, i+1] that are both side points
+  // (side===true for normal case, or vtx===true for the r=0 early-return case)
+  const isSide = p => !!(p.side || p.vtx);
+  const pairs = [];
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    if (isSide(pts[i]) && isSide(pts[j])) {
+      pairs.push(i);
+    }
+  }
+  if (pairs.length === 0) return pts;
+
+  const pairSet = new Set(pairs);
+  const out = [];
+  const HALF_SEGS = 12;
+  // S-curve direction follows twist angle sign
+  const sign = angle < 0 ? -1 : 1;
+  // Fraction of segment to leave clear near each endpoint so
+  // roundCorners' maxD calculation isn't constrained by our points.
+  const GAP = 0.15;
+
+  for (let i = 0; i < n; i++) {
+    if (pairSet.has(i)) {
+      const j = (i + 1) % n;
+      const A = pts[i], B = pts[j];
+      const dx = B.x - A.x, dy = B.y - A.y;
+      const segLen = Math.sqrt(dx * dx + dy * dy);
+      if (segLen < 0.001) { out.push(A); continue; }
+
+      // Midpoint of the side segment
+      const midX = (A.x + B.x) / 2, midY = (A.y + B.y) / 2;
+
+      // Perpendicular — pick direction pointing away from center
+      let nx = -dy, ny = dx;
+      const toCx = cx - midX, toCy = cy - midY;
+      if (nx * toCx + ny * toCy > 0) { nx = -nx; ny = -ny; }
+      const nl = Math.sqrt(nx * nx + ny * ny);
+      nx /= nl; ny /= nl;
+
+      const disp = sign * eff * segLen;
+
+      // S-curve: two quadratic beziers, point-symmetric about midpoint.
+      // First half bows outward, second half bows inward.
+      // Angle sign flips which half bows which way.
+      // Control points at the quarter and three-quarter marks.
+      const cp1x = (A.x + midX) / 2 + nx * disp;
+      const cp1y = (A.y + midY) / 2 + ny * disp;
+      const cp2x = (midX + B.x) / 2 - nx * disp;
+      const cp2y = (midY + B.y) / 2 - ny * disp;
+
+      // Emit A with its original flags, then interior bezier points
+      // (skipping points too close to endpoints), then let B be
+      // emitted naturally when the loop reaches its index.
+      out.push(A);
+      // First half: A → midpoint via cp1 (skip k=0=A, skip points in gap)
+      for (let k = 1; k <= HALF_SEGS; k++) {
+        const t = k / HALF_SEGS;
+        const tFull = t * 0.5;  // position along full segment [0..0.5]
+        if (tFull < GAP) continue;
+        const u = 1 - t;
+        out.push({
+          x: u * u * A.x + 2 * u * t * cp1x + t * t * midX,
+          y: u * u * A.y + 2 * u * t * cp1y + t * t * midY,
+          smooth: true,
+        });
+      }
+      // Second half: midpoint → B via cp2 (skip k=0=midpoint, skip k=HALF_SEGS=B, skip points in gap)
+      for (let k = 1; k < HALF_SEGS; k++) {
+        const t = k / HALF_SEGS;
+        const tFull = 0.5 + t * 0.5;  // position along full segment [0.5..1]
+        if (1 - tFull < GAP) continue;
+        const u = 1 - t;
+        out.push({
+          x: u * u * midX + 2 * u * t * cp2x + t * t * B.x,
+          y: u * u * midY + 2 * u * t * cp2y + t * t * B.y,
+          smooth: true,
+        });
+      }
+    } else {
+      out.push(pts[i]);
     }
   }
   return out;
@@ -1145,6 +1253,7 @@ function getP() {
     explode: +document.getElementById('explode').value / 100,
     roundEdge: +document.getElementById('round-edge').value,
     roundVtx:  +document.getElementById('round-vtx').value,
+    sideSmooth:+document.getElementById('side-smooth').value / 100,
     thickness: +document.getElementById('thickness').value,
     tilt:    +document.getElementById('tilt').value,
     perspective: +document.getElementById('perspective').value,
@@ -1163,7 +1272,7 @@ function getP() {
 // ---- Animated parameter interpolation ----
 // Numeric params lerp toward target over ~100ms (exponential ease-out).
 const ANIM_KEYS = ['angle','radius','size','explode','roundEdge','roundVtx',
-  'thickness','exportSize','tilt','perspective','rotation'];
+  'sideSmooth','thickness','exportSize','tilt','perspective','rotation'];
 let animP = null;   // current animated state
 let animRaf = null;  // pending rAF id
 
@@ -1370,6 +1479,7 @@ function drawWithP(p) {
     const { x: cx, y: cy } = rotPt(rawCx, rawCy);
     const rot = SHAPE.cellRot(cell) + rotRad;
     let outline = tileOutline(cx, cy, s, r, p.angle, p.angular, SHAPE.sides, rot);
+    outline = smoothSides(outline, p.sideSmooth, cx, cy, p.angle);
     if (p.roundEdge > 0 || p.roundVtx > 0) outline = roundCorners(outline, p.roundEdge * sideLen, p.roundVtx * sideLen);
     const cellFade = getCellOpacity(cell);
     const shapeFade = shapeFading ? Math.min(1, fadeElapsed / SHAPE_FADE_DUR) : 1;
@@ -1534,6 +1644,7 @@ function drawSingleTile(p) {
 
   // Modified outline
   let outline = tileOutline(cx, cy, s, r, p.angle, p.angular, SHAPE.sides);
+  outline = smoothSides(outline, p.sideSmooth, cx, cy, p.angle);
   if (p.roundEdge > 0 || p.roundVtx > 0) outline = roundCorners(outline, p.roundEdge * sl, p.roundVtx * sl);
   tracePath(outline);
   ctx.fillStyle = 'rgba(233,69,96,0.2)';
@@ -1639,6 +1750,7 @@ function drawJunction(p) {
     const tcy = offY + py;
     const rot = SHAPE.cellRot(cell);
     let outline = tileOutline(tcx, tcy, s, r, p.angle, p.angular, SHAPE.sides, rot);
+    outline = smoothSides(outline, p.sideSmooth, tcx, tcy, p.angle);
     if (p.roundEdge > 0 || p.roundVtx > 0) outline = roundCorners(outline, p.roundEdge * sl, p.roundVtx * sl);
 
     tracePath(outline);
@@ -1722,6 +1834,7 @@ document.getElementById('export-btn').addEventListener('click', () => {
   const s = sl / (2 * Math.sin(Math.PI / SHAPE.sides));  // circumradius in mm
   const r = p.radius * sl;
   let pts = tileOutline(0, 0, s, r, p.angle, p.angular, SHAPE.sides);
+  pts = smoothSides(pts, p.sideSmooth, 0, 0, p.angle);
   if (p.roundEdge > 0 || p.roundVtx > 0) pts = roundCorners(pts, p.roundEdge * sl, p.roundVtx * sl);
 
   // Flip Y so SVG matches standard orientation
@@ -1746,7 +1859,8 @@ document.getElementById('export-btn').addEventListener('click', () => {
 
   const sn = SHAPE.name.toLowerCase();
   const jt = p.angular ? 'ang' : 'arc';
-  downloadSVG(svg, `${sn}-${p.angle}deg-r${(p.radius * 100).toFixed(0)}-re${(p.roundEdge * 1000).toFixed(0)}-rv${(p.roundVtx * 1000).toFixed(0)}-${p.exportSize}mm-${jt}.svg`);
+  const ss1 = p.sideSmooth > 0.001 ? `-ss${(p.sideSmooth * 100).toFixed(0)}` : '';
+  downloadSVG(svg, `${sn}-${p.angle}deg-r${(p.radius * 100).toFixed(0)}-re${(p.roundEdge * 1000).toFixed(0)}-rv${(p.roundVtx * 1000).toFixed(0)}${ss1}-${p.exportSize}mm-${jt}.svg`);
 });
 
 // Grid SVG export — all tiles in the current grid
@@ -1764,6 +1878,7 @@ document.getElementById('export-grid-btn').addEventListener('click', () => {
     const { x: px, y: py } = SHAPE.cell2px(cell, s);
     const rot = SHAPE.cellRot(cell);
     let pts = tileOutline(px, py, s, r, p.angle, p.angular, SHAPE.sides, rot);
+    pts = smoothSides(pts, p.sideSmooth, px, py, p.angle);
     if (p.roundEdge > 0 || p.roundVtx > 0) pts = roundCorners(pts, p.roundEdge * sl, p.roundVtx * sl);
     const fp = pts.map(pt => ({ x: pt.x, y: -pt.y }));
     for (const pt of fp) {
@@ -1791,7 +1906,8 @@ document.getElementById('export-grid-btn').addEventListener('click', () => {
 
   const sn = SHAPE.name.toLowerCase();
   const jt = p.angular ? 'ang' : 'arc';
-  downloadSVG(svg, `${sn}-grid-${p.angle}deg-r${(p.radius * 100).toFixed(0)}-re${(p.roundEdge * 1000).toFixed(0)}-rv${(p.roundVtx * 1000).toFixed(0)}-${p.exportSize}mm-${jt}-${cells.length}tiles.svg`);
+  const ss2 = p.sideSmooth > 0.001 ? `-ss${(p.sideSmooth * 100).toFixed(0)}` : '';
+  downloadSVG(svg, `${sn}-grid-${p.angle}deg-r${(p.radius * 100).toFixed(0)}-re${(p.roundEdge * 1000).toFixed(0)}-rv${(p.roundVtx * 1000).toFixed(0)}${ss2}-${p.exportSize}mm-${jt}-${cells.length}tiles.svg`);
 });
 
 // ============================================================
@@ -1848,6 +1964,7 @@ const sliders = [
   { id: 'radius',  vid: 'v-radius',  fmt: v => v.toFixed(2) + ' \u00D7 side' },
   { id: 'round-edge', vid: 'v-round-edge', fmt: v => (+v).toFixed(3) + ' \u00D7 side' },
   { id: 'round-vtx',  vid: 'v-round-vtx',  fmt: v => (+v).toFixed(3) + ' \u00D7 side' },
+  { id: 'side-smooth', vid: 'v-side-smooth', fmt: v => v + '%' },
   { id: 'thickness', vid: 'v-thickness', fmt: v => (+v).toFixed(1) + ' mm' },
   { id: 'export-size', vid: 'v-export-size', fmt: v => v + ' mm' },
   { id: 'size',    vid: 'v-size',    fmt: v => v },
@@ -1865,9 +1982,22 @@ const perspGroup = document.getElementById('perspective-group');
 function syncPerspVisibility() {
   perspGroup.style.display = +document.getElementById('tilt').value > 0 ? '' : 'none';
 }
+// Capture default values from HTML, wire up input + label-click-to-reset
+const sliderDefaults = {};
 sliders.forEach(s => {
   const el = document.getElementById(s.id);
+  sliderDefaults[s.id] = el.defaultValue;
   el.addEventListener('input', () => {
+    document.getElementById(s.vid).textContent = s.fmt(+el.value);
+    if (s.id === 'tilt') syncPerspVisibility();
+    onInput();
+  });
+  // Click label text to reset slider to default (animated)
+  const label = el.closest('.group').querySelector('label');
+  label.addEventListener('click', e => {
+    if (e.target.tagName === 'SELECT') return;  // don't hijack theme dropdown
+    e.preventDefault();
+    el.value = sliderDefaults[s.id];
     document.getElementById(s.vid).textContent = s.fmt(+el.value);
     if (s.id === 'tilt') syncPerspVisibility();
     onInput();
@@ -1899,6 +2029,7 @@ document.getElementById('randomize-btn').addEventListener('click', () => {
     { id: 'radius',      vid: 'v-radius',      min: 0.05, max: 0.45, step: 0.01, fmt: v => v.toFixed(2) + ' \u00D7 side' },
     { id: 'round-edge',  vid: 'v-round-edge',  min: 0, max: 0.1, step: 0.001, fmt: v => (+v).toFixed(3) + ' \u00D7 side' },
     { id: 'round-vtx',   vid: 'v-round-vtx',   min: 0, max: 0.15, step: 0.005, fmt: v => (+v).toFixed(3) + ' \u00D7 side' },
+    { id: 'side-smooth', vid: 'v-side-smooth',  min: 0, max: 100, step: 1, fmt: v => v + '%' },
     { id: 'thickness',   vid: 'v-thickness',    min: 1, max: 5, step: 0.1, fmt: v => (+v).toFixed(1) + ' mm' },
     { id: 'export-size', vid: 'v-export-size',  min: 15, max: 50, step: 1, fmt: v => v + ' mm' },
   ];
@@ -1963,6 +2094,7 @@ const DEMO_SLIDERS = [
   { key: 'radius',     id: 'radius',      vid: 'v-radius',      fmt: v => v.toFixed(2) + ' \u00D7 side' },
   { key: 'roundEdge',  id: 'round-edge',  vid: 'v-round-edge',  fmt: v => (+v).toFixed(3) + ' \u00D7 side' },
   { key: 'roundVtx',   id: 'round-vtx',   vid: 'v-round-vtx',   fmt: v => (+v).toFixed(3) + ' \u00D7 side' },
+  { key: 'sideSmooth', id: 'side-smooth', vid: 'v-side-smooth',  fmt: v => Math.round(v) + '%' },
   { key: 'thickness',  id: 'thickness',   vid: 'v-thickness',    fmt: v => (+v).toFixed(1) + ' mm' },
   { key: 'exportSize', id: 'export-size', vid: 'v-export-size',  fmt: v => Math.round(v) + ' mm' },
   { key: 'size',       id: 'size',        vid: 'v-size',         fmt: v => Math.round(v) },
@@ -1986,6 +2118,7 @@ function demoRandomTarget(forceSides) {
     radius:     rng(0.05, 0.45, 0.01),
     roundEdge:  rng(0, 0.1, 0.001),
     roundVtx:   rng(0, 0.15, 0.005),
+    sideSmooth: rng(0, 100, 1),
     thickness:  rng(1, 5, 0.1),
     exportSize: rng(15, 50, 1),
     size:       rng(30, 150, 1),
